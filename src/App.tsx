@@ -23,6 +23,7 @@ import {
   signInWithCustomToken,
   signInAnonymously,
   onAuthStateChanged,
+  User as FirebaseUser,
 } from "firebase/auth";
 import {
   getFirestore,
@@ -49,7 +50,7 @@ const MUSCLE_GROUPS = [
   "Rest",
 ];
 
-const DEFAULT_EXERCISES = {
+const DEFAULT_EXERCISES: Record<string, string[]> = {
   Biceps: ["Barbell Curl", "Hammer Curl", "Preacher Curl"],
   Triceps: ["Tricep Pushdown", "Skullcrushers", "Dips"],
   Chest: ["Bench Press", "Incline Dumbbell Press", "Cable Flyes"],
@@ -68,7 +69,7 @@ const firebaseConfig = {
   projectId: "my-gym-tracker-813e1",
   storageBucket: "my-gym-tracker-813e1.firebasestorage.app",
   messagingSenderId: "101414265360",
-  appId: "1:101414265360:web:c74c7d7a01cb036fe9a095",
+  appId: "1:101414265360:web:c74c7d7a01cb036fe9a095"
 };
 
 // Initialize Firebase
@@ -79,14 +80,16 @@ const appId = "my-gym-tracker";
 
 // --- Helper Functions ---
 
-const getFormattedDate = (date) => {
+// FIX: Added ': Date' type annotation
+const getFormattedDate = (date: Date) => {
   const y = date.getFullYear();
   const m = String(date.getMonth() + 1).padStart(2, "0");
   const d = String(date.getDate()).padStart(2, "0");
   return `${y}-${m}-${d}`;
 };
 
-const getDayName = (date) => {
+// FIX: Added ': Date' type annotation
+const getDayName = (date: Date) => {
   return date.toLocaleDateString("en-US", { weekday: "long" });
 };
 
@@ -98,10 +101,11 @@ const LoadingSpinner = () => (
   </div>
 );
 
-const AuthScreen = ({ onLogin }) => {
+// FIX: Added prop types
+const AuthScreen = ({ onLogin }: { onLogin: (username: string) => void }) => {
   const [username, setUsername] = useState("");
 
-  const handleSubmit = (e) => {
+  const handleSubmit = (e: React.FormEvent | React.KeyboardEvent) => {
     e.preventDefault();
     if (username.trim().length > 0) {
       onLogin(username.trim());
@@ -136,7 +140,7 @@ const AuthScreen = ({ onLogin }) => {
           </div>
 
           <button
-            onClick={handleSubmit}
+            onClick={(e) => handleSubmit(e)}
             disabled={!username.trim()}
             className={`w-full py-3 px-4 rounded-lg font-bold text-white shadow-md transition-all
               ${
@@ -163,26 +167,26 @@ const AuthScreen = ({ onLogin }) => {
 export default function App() {
   // FIX: Automatically inject Tailwind CSS for CodeSandbox compatibility
   useEffect(() => {
-    const scriptId = "tailwind-script";
+    const scriptId = 'tailwind-script';
     if (!document.getElementById(scriptId)) {
-      const script = document.createElement("script");
+      const script = document.createElement('script');
       script.id = scriptId;
       script.src = "https://cdn.tailwindcss.com";
       document.head.appendChild(script);
     }
   }, []);
 
-  const [username, setUsername] = useState(null);
-  const [firebaseUser, setFirebaseUser] = useState(null);
+  const [username, setUsername] = useState<string | null>(null);
+  const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [currentDate, setCurrentDate] = useState(new Date());
 
   // State for manually selected muscle group
   const [activeMuscleGroup, setActiveMuscleGroup] = useState("Biceps");
 
-  // Data States
-  const [workouts, setWorkouts] = useState({});
-  const [templates, setTemplates] = useState({});
+  // Data States (using 'any' for complex objects to simplify TS for this snippet)
+  const [workouts, setWorkouts] = useState<any>({});
+  const [templates, setTemplates] = useState<any>({});
   const [view, setView] = useState("dashboard");
 
   // --- Auth & Initial Data Loading ---
@@ -199,16 +203,14 @@ export default function App() {
       try {
         // Try custom token first (only works if config matches env)
         if (
-          typeof __initial_auth_token !== "undefined" &&
-          __initial_auth_token
+          typeof (window as any).__initial_auth_token !== "undefined" &&
+          (window as any).__initial_auth_token
         ) {
           try {
-            await signInWithCustomToken(auth, __initial_auth_token);
-            return;
+             await signInWithCustomToken(auth, (window as any).__initial_auth_token);
+             return;
           } catch (e) {
-            console.warn(
-              "Environment token mismatch (expected for custom config). Falling back to anonymous auth."
-            );
+             console.warn("Environment token mismatch (expected for custom config). Falling back to anonymous auth.");
           }
         }
         // Fallback to Anonymous Auth
@@ -230,7 +232,7 @@ export default function App() {
     return () => unsubscribe();
   }, []);
 
-  const handleLogin = (name) => {
+  const handleLogin = (name: string) => {
     // Sanitize username to be safe for document IDs
     const safeName = name.replace(/[^a-zA-Z0-9_-]/g, "_").toLowerCase();
     localStorage.setItem("gym_tracker_username", safeName);
@@ -285,7 +287,7 @@ export default function App() {
 
   // --- CRUD Operations ---
 
-  const addExercise = async (name, weight) => {
+  const addExercise = async (name: string, weight: any) => {
     if (!name || !weight) return;
     if (!username) {
       alert("Please login first.");
@@ -337,7 +339,7 @@ export default function App() {
     }
   };
 
-  const deleteExercise = async (exerciseId) => {
+  const deleteExercise = async (exerciseId: string) => {
     const userDocRef = doc(
       db,
       "artifacts",
@@ -345,10 +347,11 @@ export default function App() {
       "public",
       "data",
       "gym_trackers",
-      username
+      username!
     );
+    // @ts-ignore
     const updatedExercises = currentLog.exercises.filter(
-      (ex) => ex.id !== exerciseId
+      (ex: any) => ex.id !== exerciseId
     );
 
     try {
@@ -368,7 +371,7 @@ export default function App() {
     }
   };
 
-  const changeDate = (days) => {
+  const changeDate = (days: number) => {
     const newDate = new Date(currentDate);
     newDate.setDate(newDate.getDate() + days);
     setCurrentDate(newDate);
@@ -441,6 +444,14 @@ const Dashboard = ({
   onLogClick,
   onDateChange,
   totalWorkouts,
+}: {
+  currentDate: Date;
+  muscleGroup: string;
+  setMuscleGroup: (group: string) => void;
+  workouts: any;
+  onLogClick: () => void;
+  onDateChange: (days: number) => void;
+  totalWorkouts: number;
 }) => {
   const isRestDay = muscleGroup === "Rest";
   const isToday = new Date().toDateString() === currentDate.toDateString();
@@ -449,7 +460,7 @@ const Dashboard = ({
   const historyLogs = useMemo(() => {
     if (!workouts) return [];
 
-    const logs = Object.values(workouts);
+    const logs = Object.values(workouts) as any[];
 
     const filtered = logs.filter(
       (log) =>
@@ -458,7 +469,7 @@ const Dashboard = ({
         log.exercises.length > 0
     );
 
-    return filtered.sort((a, b) => new Date(b.date) - new Date(a.date));
+    return filtered.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }, [workouts, muscleGroup]);
 
   return (
@@ -547,7 +558,7 @@ const Dashboard = ({
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
             {historyLogs.length > 0 ? (
               <div className="divide-y divide-gray-100 max-h-96 overflow-y-auto">
-                {historyLogs.map((log) => (
+                {historyLogs.map((log: any) => (
                   <div
                     key={log.date}
                     className="p-4 hover:bg-gray-50 transition"
@@ -560,7 +571,7 @@ const Dashboard = ({
                       </span>
                     </div>
                     <div className="space-y-3 pl-2 border-l-2 border-indigo-100">
-                      {log.exercises.map((ex, idx) => (
+                      {log.exercises.map((ex: any, idx: number) => (
                         <div key={idx} className="flex flex-col">
                           <span className="font-bold text-gray-800 text-sm">
                             {ex.exerciseName}
@@ -615,6 +626,15 @@ const Logger = ({
   onAdd,
   onDelete,
   templates,
+}: {
+  currentDate: Date;
+  muscleGroup: string;
+  currentLog: any;
+  workouts: any;
+  onBack: () => void;
+  onAdd: (name: string, weight: any) => Promise<void>;
+  onDelete: (id: string) => Promise<void>;
+  templates: any;
 }) => {
   const [exerciseName, setExerciseName] = useState("");
   const [weight, setWeight] = useState(10);
@@ -632,14 +652,14 @@ const Logger = ({
   // Compute Full History for this Muscle Group
   const historyLogs = useMemo(() => {
     if (!workouts) return [];
-    const logs = Object.values(workouts);
+    const logs = Object.values(workouts) as any[];
     const filtered = logs.filter(
       (log) =>
         log.muscleGroup === muscleGroup &&
         log.exercises &&
         log.exercises.length > 0
     );
-    return filtered.sort((a, b) => new Date(b.date) - new Date(a.date));
+    return filtered.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }, [workouts, muscleGroup]);
 
   // Smart Progressive Overload
@@ -647,7 +667,7 @@ const Logger = ({
     if (!exerciseName || !historyLogs.length) return null;
     for (const log of historyLogs) {
       if (log.date === getFormattedDate(currentDate)) continue;
-      const found = log.exercises.find((e) => e.exerciseName === exerciseName);
+      const found = log.exercises.find((e: any) => e.exerciseName === exerciseName);
       if (found) return { weight: found.weight, date: log.date };
     }
     return null;
@@ -661,10 +681,9 @@ const Logger = ({
       setShowSuccess(true);
       setExerciseName("");
       setTimeout(() => setShowSuccess(false), 2000);
-    } catch (err) {
+    } catch (err: any) {
       // Improved Error Handling: Alert the actual error message
       console.error("Save error details:", err);
-      // alert(`Failed to save: ${err.message || "Unknown error"}`);
       // Fallback for user clarity
       alert(
         `Error: ${
@@ -760,7 +779,7 @@ const Logger = ({
               <select
                 className="w-full p-3 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none font-mono"
                 value={weight}
-                onChange={(e) => setWeight(e.target.value)}
+                onChange={(e: any) => setWeight(e.target.value)}
               >
                 {WEIGHT_INCREMENTS.map((w) => (
                   <option key={w} value={w}>
@@ -824,7 +843,7 @@ const Logger = ({
             currentLog.exercises
               .slice()
               .reverse()
-              .map((ex) => (
+              .map((ex: any) => (
                 <div
                   key={ex.id}
                   className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex justify-between items-center group"
