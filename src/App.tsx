@@ -93,6 +93,15 @@ const getDayName = (date: Date) => {
   return date.toLocaleDateString("en-US", { weekday: "long" });
 };
 
+// FIX: Custom UUID generator to avoid TS errors with crypto.randomUUID
+const generateUUID = () => {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    const r = Math.random() * 16 | 0;
+    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+};
+
 // --- Components ---
 
 const LoadingSpinner = () => (
@@ -294,8 +303,9 @@ export default function App() {
       return;
     }
 
+    // FIX: Replaced crypto.randomUUID() with custom generateUUID()
     const newExercise = {
-      id: crypto.randomUUID(),
+      id: generateUUID(),
       exerciseName: name,
       weight: parseFloat(weight),
       loggedAt: new Date().toISOString(),
